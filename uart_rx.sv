@@ -19,7 +19,7 @@ output              valid;     // Valid data flag
 reg [7:0]           shift_reg;       // Shift register for storing data bits
 reg                 valid_reg;
 
-reg [3:0]           sample_counter;
+reg [3:0]           sample_counter;  // Sampling baud_rate x 16
 reg [2:0]           bit_counter;
 
 wire                en_shft;
