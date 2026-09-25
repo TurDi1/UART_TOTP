@@ -1,12 +1,12 @@
 `timescale 1 ns / 1 ns
 
-module riscv_tb_beq ();
+module uart_rx_tb ();
 //==================================
 //           PARAMETERS
 //==================================
 parameter CLK_WIDTH = 10ns;  // 50 MHz. Clock width, half period.
 
-logic rst_time;              // Variable of time for reset
+time  rst_time;              // Variable of time for reset
 logic success;               // Success simulation variable
 
 //==================================
@@ -66,7 +66,7 @@ begin
     $display("----------------------------");
 
     // Set random time in range between 20-40 ns
-    rst_time = $urandom_range(20ns, 40ns);
+    rst_time = $urandom_range(10ns, 50ns);
     
     #rst_time sys_rst_reg = 0;
     $display("----------------------------");
