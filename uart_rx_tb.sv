@@ -40,7 +40,7 @@ end
 //==================================
 //          BAUD TICK
 //==================================
-always @(negedge sys_clk_reg)
+always @(posedge sys_clk_reg)
 begin
     if (sys_rst_reg)
     begin
@@ -69,7 +69,12 @@ begin
     tx_reg_for_rx = '1; // IDLE value
 
     system_reset();
+    normal_send_data_to_rx(8'h37);
+    normal_send_data_to_rx(8'hF0);
+    normal_send_data_to_rx(8'h0F);
     
+    #10ns
+    $finish;
 end
 
 //==================================
@@ -113,8 +118,15 @@ begin
     // Load tx reg with stop, data, start bits
     tx_reg_for_rx = {1'b1, tx_data, 1'b0};
 
-    // NOT COMPLETED TASK...
-    // Here will be for loop logic that every 16 ticks shift right data in tx_reg_for_rx register
+    repeat (10) // Starting shift loop of all ten bits
+    begin
+        repeat (16) // Wait 16x ticks
+        begin
+            @(posedge baud_tick_reg);
+        end
+
+        tx_reg_for_rx = {1'b1, tx_reg_for_rx[9:1]};
+    end
 end
 endtask
-endmodule 
+endmodule
