@@ -84,10 +84,10 @@ begin
             DATA: begin
                 if (baud_tick)
                 begin
-                    if (sample_counter == 4'd15) begin
+                    if (sample_counter == 4'b1111) begin
                         sample_counter <= 0;
 
-                        if (bit_counter == 3'd7) begin
+                        if (bit_counter == 3'b111) begin
                             bit_counter <= 0;
                             fsm_state   <= STOP;
                         end

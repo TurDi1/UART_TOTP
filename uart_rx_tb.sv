@@ -69,9 +69,7 @@ begin
     tx_reg_for_rx = '1; // IDLE value
 
     system_reset();
-    normal_send_data_to_rx(8'h37);
-    normal_send_data_to_rx(8'hF0);
-    normal_send_data_to_rx(8'h0F);
+    pattern_check();
     
     #10ns
     $finish;
@@ -126,6 +124,29 @@ begin
         end
 
         tx_reg_for_rx = {1'b1, tx_reg_for_rx[9:1]};
+    end
+end
+endtask
+
+task pattern_check;
+begin
+    logic [8:0] [7:0] pattern_bytes;
+
+    // Check useful pattern of bytesin HEX: 00 FF 55 AA 01 80 0F F0 37
+    pattern_bytes[0] = 8'h00;
+    pattern_bytes[1] = 8'hFF;
+    pattern_bytes[2] = 8'h55;
+    pattern_bytes[3] = 8'hAA;
+    pattern_bytes[4] = 8'h01;
+    pattern_bytes[5] = 8'h80;
+    pattern_bytes[6] = 8'h0F;
+    pattern_bytes[7] = 8'hF0;
+    pattern_bytes[8] = 8'h37;
+      
+    // Not completed task
+    for(int i = 0; i < $size(pattern_bytes); i++)
+    begin
+        normal_send_data_to_rx(pattern_bytes[i]);
     end
 end
 endtask
