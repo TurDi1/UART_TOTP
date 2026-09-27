@@ -122,7 +122,7 @@ begin
     // Load tx reg with stop, data, start bits
     tx_reg_for_rx = {1'b1, tx_data, 1'b0};
 
-    $display("%t [TB INFO]  SEND DATA BYTE %h TO UART_RX", $realtime, tx_data);
+    $display("%t [TB INFO]  SEND DATA BYTE 0x%h TO UART_RX", $realtime, tx_data);
 
     repeat (10) // Starting shift loop of all ten bits
     begin
@@ -140,7 +140,7 @@ task pattern_check;
 begin
     logic [8:0] [7:0] pattern_bytes;
 
-    // Check useful pattern of bytesin HEX: 00 FF 55 AA 01 80 0F F0 37
+    // Check useful pattern of bytes in HEX: 00 FF 55 AA 01 80 0F F0 37
     pattern_bytes[0] = 8'h00;
     pattern_bytes[1] = 8'hFF;
     pattern_bytes[2] = 8'h55;
@@ -153,34 +153,67 @@ begin
 
     for(int i = 0; i < $size(pattern_bytes); i++)
     begin
-        fork
-            // Sending data to receiver
-            begin
-                normal_send_data_to_rx(pattern_bytes[i]);
-            end
-            // Check received data
-            begin
-                wait(valid_wire == 1'b1);
-                if(rx_data_wire == pattern_bytes[i])
+        fork : send_n_chk
+        begin
+            fork
+                // Sending data to receiver
                 begin
-                    $display("------------------------------------------------------------");
-                    $display("%t [TB PASS]  TX=%h  RX=%h", $realtime, pattern_bytes[i], rx_data_wire);
-                    // $display("%t [TB INFO]  received byte - %h", $realtime, rx_data_wire);
-                    // $display("%t [TB INFO]  sent byte   - %h", $realtime, pattern_bytes[i]);
-                    $display("------------------------------------------------------------");
+                    normal_send_data_to_rx(pattern_bytes[i]);
                 end
-                else
+                
+                // Check received data
                 begin
-                    $display("------------------------------------------------------------");
-                    $display("%t [TB ERROR]  Sent & received bytes are not equal!", $realtime);
-                    $display("%t [TB INFO]  received byte - %h", $realtime, rx_data_wire);
-                    $display("%t [TB INFO]  sent byte   - %h", $realtime, pattern_bytes[i]);
-                    $display("------------------------------------------------------------");
-                    $fatal;
+                    wait(valid_wire == 1'b1);
+                    if(rx_data_wire == pattern_bytes[i])
+                    begin
+                        $display("------------------------------------------------------------");
+                        $display("%t [TB PASS]  TX=0x%h  RX=0x%h", $realtime, pattern_bytes[i], rx_data_wire);
+                        // $display("%t [TB INFO]  received byte - %h", $realtime, rx_data_wire);
+                        // $display("%t [TB INFO]  sent byte   - %h", $realtime, pattern_bytes[i]);
+                        $display("------------------------------------------------------------");
+                    end
+                    else
+                    begin
+                        $display("------------------------------------------------------------");
+                        $display("%t [TB ERROR]  Sent & received bytes are not equal!", $realtime);
+                        $display("%t [TB INFO]  received byte - 0x%h", $realtime, rx_data_wire);
+                        $display("%t [TB INFO]  sent byte   - 0x%h", $realtime, pattern_bytes[i]);
+                        $display("------------------------------------------------------------");
+                        $fatal;
+                    end
                 end
-            end
-        join
+            join
+        end
+
+        begin
+            repeat (500)
+                @(posedge baud_tick_reg);
+
+            $display("----------------------------------------------------------");
+            $display("%t [TB ERROR] TIMEOUT: UART_RX ARE STUCK", $realtime);
+            $display("----------------------------------------------------------");
+            $fatal;
+        end
+        join_any
+        disable send_n_chk;
     end
+end
+endtask
+
+task false_start;
+begin
+    // Load tx reg with only start bit
+    tx_reg_for_rx = 10'b1111111110;
+    
+    repeat (3) // Wait 3x ticks
+    begin
+        @(posedge baud_tick_reg);
+    end
+
+    // change start bit to idle
+    tx_reg_for_rx = 10'b1111111111;
+
+    // Not completed
 end
 endtask
 endmodule

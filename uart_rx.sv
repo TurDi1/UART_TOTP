@@ -59,7 +59,6 @@ begin
             IDLE: begin
                 valid_reg  <= 0;
                 sample_counter <= 0;
-                //en_shft        <= 0;
                 bit_counter    <= 0;
 
                 if (rx == 0)
