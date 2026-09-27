@@ -105,7 +105,7 @@ begin
     $display("%t [TB INFO]  RESET ASSERTED!", $realtime);
     $display("--------------------------------");
 
-    // Set random time in range between 20-40 ns
+    // Set random time in range
     rst_time = $urandom_range(10ns, 50ns);
     
     #rst_time sys_rst_reg = 0;
@@ -164,17 +164,17 @@ begin
                 if(rx_data_wire == pattern_bytes[i])
                 begin
                     $display("------------------------------------------------------------");
-                    $display("%t [TB INFO]  Sended & received bytes are equal!", $realtime);
-                    $display("%t [TB INFO]  received byte - %h", $realtime, rx_data_wire);
-                    $display("%t [TB INFO]  sended byte   - %h", $realtime, pattern_bytes[i]);
+                    $display("%t [TB PASS]  TX=%h  RX=%h", $realtime, pattern_bytes[i], rx_data_wire);
+                    // $display("%t [TB INFO]  received byte - %h", $realtime, rx_data_wire);
+                    // $display("%t [TB INFO]  sent byte   - %h", $realtime, pattern_bytes[i]);
                     $display("------------------------------------------------------------");
                 end
                 else
                 begin
                     $display("------------------------------------------------------------");
-                    $display("%t [TB ERROR]  Sended & received bytes are not equal!", $realtime);
+                    $display("%t [TB ERROR]  Sent & received bytes are not equal!", $realtime);
                     $display("%t [TB INFO]  received byte - %h", $realtime, rx_data_wire);
-                    $display("%t [TB INFO]  sended byte   - %h", $realtime, pattern_bytes[i]);
+                    $display("%t [TB INFO]  sent byte   - %h", $realtime, pattern_bytes[i]);
                     $display("------------------------------------------------------------");
                     $fatal;
                 end
