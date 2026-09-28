@@ -77,9 +77,11 @@ begin
     pattern_check();
     false_start();
     // Here should be broken stop bit test. Not completed
-
+    
+    #5ns
+    $display("");
     $display("-------------------------------------------");
-    $display("%t [TB INFO]  TEST COMPLETE", $realtime);
+    $display("%t [TB INFO]  ALL TESTS COMPLETED", $realtime);
     $display("-------------------------------------------");
     $finish;
 end
@@ -117,6 +119,7 @@ begin
 end
 endtask
 
+
 task normal_send_data_to_rx;
 input [7:0] tx_data;
 begin
@@ -137,10 +140,13 @@ begin
 end
 endtask
 
+
 task pattern_check;
 begin
     logic [8:0] [7:0] pattern_bytes;
 
+    $display("%t [TB INFO]  ==== PATTERN CHECK STARTED ====", $realtime);
+    $display("");
     // Check useful pattern of bytes in HEX: 00 FF 55 AA 01 80 0F F0 37
     pattern_bytes[0] = 8'h00;
     pattern_bytes[1] = 8'hFF;
@@ -169,8 +175,6 @@ begin
                     begin
                         $display("------------------------------------------------------------");
                         $display("%t [TB PASS]  TX=0x%h  RX=0x%h", $realtime, pattern_bytes[i], rx_data_wire);
-                        // $display("%t [TB INFO]  received byte - %h", $realtime, rx_data_wire);
-                        // $display("%t [TB INFO]  sent byte   - %h", $realtime, pattern_bytes[i]);
                         $display("------------------------------------------------------------");
                     end
                     else
@@ -198,47 +202,99 @@ begin
         join_any
         disable send_n_chk;
     end
+    $display("%t [TB INFO]  ==== PATTERN CHECK COMPLETED ====", $realtime);
+    $display("");
 end
 endtask
+
 
 task false_start;
 begin
-    // Load tx reg with only start bit
-    tx_reg_for_rx = 10'b1111111110;
-    
-    repeat (3) // Wait 3x ticks
-    begin
-        @(posedge baud_tick_reg);
-    end
+    $display("%t [TB INFO]  ==== FALSE START SUBTEST CHECK STARTED ====", $realtime);
+    fork : wait_start
+        begin
+            fork
+                begin
+                    if (dut.fsm_state == 2'b00 && valid_wire == 1'b0 && dut.rx == 1'b1)  // Check UART_RX before assign RX to LOW
+                    begin
+                        tx_reg_for_rx = 10'b1111111110; // Load tx reg with only start bit
+                        repeat (3) // Wait 3x ticks
+                        begin
+                            @(posedge baud_tick_reg);
+                        end
+                    end
+                    else
+                    begin
+                        $display("%t [TB ERROR]  UART_RX ARE: 1)NOT IN IDLE STATE,", $realtime);
+                        $display("%t [TB ERROR]  2) NOT VALID IS LOW", $realtime);
+                        $display("%t [TB ERROR]  3) NOT RX PORT IS HIGH", $realtime);
+                        $fatal;                    
+                    end
+                end
 
-    // change start bit to idle
+                begin   // Waiting change state from idle to start
+                    wait(dut.fsm_state == 2'b01);
+                    $display("%t [TB INFO] CAPTURED CHANGE OF STATE TO START AFTER FALSE RX PORT TO LOW", $realtime);
+                end
+            join
+        end
+
+        begin   // Check restricted states
+            wait(dut.fsm_state == 2'b10 || dut.fsm_state == 2'b11);
+            $display("%t [TB ERROR] RESTRICTED STATE DATA OR STOP OF FSM IN SUBTEST!", $realtime);
+            $fatal;
+        end
+
+        begin   // TIMEOUT
+            repeat (500)
+                @(posedge baud_tick_reg);
+
+            $display("--------------------------------------------------------------------");
+            $display("%t [TB ERROR] TIMEOUT: UART_RX ARE NOT CHANGE TO START STATE", $realtime);
+            $display("--------------------------------------------------------------------");
+            $fatal;
+        end
+    join_any
+    disable wait_start;
+
+
+    $display("%t [TB INFO] CHANGE RX PORT TO HIGH BEFORE START BIT SAMPLING ARE END", $realtime);
     tx_reg_for_rx = 10'b1111111111;
 
-    if (dut.fsm_state != START)
-    begin
-        $display("%t [TB ERROR] RESTRICTED STATE OF FSM!", $realtime);
-        $fatal;
-    end
 
     fork : wait_chng
-    begin
-        wait(dut.fsm_state == IDLE);
-        $display("%t [TB INFO] CAPTURED CHANGE OF STATE TO IDLE", $realtime);
-    end
+        begin   // FSM checker of expected IDLE
+            wait(dut.fsm_state == 2'b00 && valid_wire == 1'b0);
+            $display("%t [TB INFO] CAPTURED CHANGE OF STATE TO IDLE", $realtime);
+        end
 
-    begin   // TIMEOUT
-        repeat (500)
-            @(posedge baud_tick_reg);
+        begin   // Check restricted states
+            wait(dut.fsm_state == 2'b10 || dut.fsm_state == 2'b11);
+            $display("%t [TB ERROR] RESTRICTED STATE DATA OR STOP OF FSM IN SUBTEST!", $realtime);
+            $fatal;
+        end
 
-        $display("-------------------------------------------------------------");
-        $display("%t [TB ERROR] TIMEOUT: UART_RX ARE STUCK IN START STATE", $realtime);
-        $display("-------------------------------------------------------------");
-        $fatal; 
-    end
+        begin   // Valid checker in proccess
+            wait(valid_wire == 1'b1);
+            $display("%t [TB ERROR]  CAPTURED VALID FLAG!", $realtime);
+            $fatal;
+        end
+
+        begin   // TIMEOUT
+            repeat (500)
+                @(posedge baud_tick_reg);
+
+            $display("-------------------------------------------------------------");
+            $display("%t [TB ERROR] TIMEOUT: UART_RX ARE STUCK IN START STATE", $realtime);
+            $display("-------------------------------------------------------------");
+            $fatal;
+        end
     join_any
     disable wait_chng;
+    $display("%t [TB INFO]  ==== FALSE START SUBTEST CHECK COMPLETED ====", $realtime);
 end
 endtask
+
 
 task stop_test;
 input [7:0] tx_data;
@@ -257,7 +313,6 @@ begin
         tx_reg_for_rx = {1'b1, tx_reg_for_rx[9:1]};
     end
 
-    // wait(dut.fsm_state == IDLE && valid_wire == 1'b0);
     // Not completed task
 end
 endtask

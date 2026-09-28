@@ -17,7 +17,7 @@ always @(posedge clk)
 begin
     ff[0] <= async_in;
 
-    for(int i=0; i < ff_num; i++)
+    for(int i = 1; i < ff_num; i++)
         ff[i] <= ff[i - 1];
 end
 endmodule
