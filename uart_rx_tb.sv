@@ -76,10 +76,9 @@ begin
     system_reset();
     pattern_check();
     false_start();
-    // Here should be broken stop bit test. Not completed
+    stop_test(8'h37);
     
     #5ns
-    $display("");
     $display("-------------------------------------------");
     $display("%t [TB INFO]  ALL TESTS COMPLETED", $realtime);
     $display("-------------------------------------------");
@@ -225,10 +224,10 @@ begin
                     end
                     else
                     begin
-                        $display("%t [TB ERROR]  UART_RX ARE: 1)NOT IN IDLE STATE,", $realtime);
+                        $display("%t [TB ERROR]  UART_RX ARE: 1) NOT IN IDLE STATE,", $realtime);
                         $display("%t [TB ERROR]  2) NOT VALID IS LOW", $realtime);
                         $display("%t [TB ERROR]  3) NOT RX PORT IS HIGH", $realtime);
-                        $fatal;                    
+                        $fatal;
                     end
                 end
 
@@ -292,6 +291,7 @@ begin
     join_any
     disable wait_chng;
     $display("%t [TB INFO]  ==== FALSE START SUBTEST CHECK COMPLETED ====", $realtime);
+    $display("");
 end
 endtask
 
@@ -299,21 +299,73 @@ endtask
 task stop_test;
 input [7:0] tx_data;
 begin
-    // Load tx reg with broken stop, data, start bits
-    tx_reg_for_rx = {1'b0, tx_data, 1'b0};
-    $display("%t [TB INFO]  SEND DATA BYTE 0x%h TO UART_RX", $realtime, tx_data);
+    $display("%t [TB INFO]  ==== BROKEN STOP SUBTEST STARTED ====", $realtime);
 
-    repeat (10) // Starting shift loop of all ten bits
+    if (dut.fsm_state != 2'b00 || valid_wire != 1'b0 || dut.rx != 1'b1)
     begin
-        repeat (16) // Wait 16x ticks
-        begin
-            @(posedge baud_tick_reg);
-        end
-
-        tx_reg_for_rx = {1'b1, tx_reg_for_rx[9:1]};
+        $display("%t [TB ERROR]  UART_RX ARE: 1) NOT IN IDLE STATE,", $realtime);
+        $display("%t [TB ERROR]  2) NOT VALID IS LOW", $realtime);
+        $display("%t [TB ERROR]  3) NOT RX PORT IS HIGH", $realtime);
+        $fatal;
     end
 
-    // Not completed task
+    fork : broken_stop_check
+        begin
+            fork
+                begin
+                    // Load broken STOP, DATA, START
+                    tx_reg_for_rx = {1'b0, tx_data, 1'b0};
+
+                    $display("%t [TB INFO] SEND DATA BYTE 0x%h WITH BROKEN STOP", $realtime, tx_data);
+                    repeat (10)
+                    begin
+                        repeat (16)
+                            @(posedge baud_tick_reg);
+
+                        tx_reg_for_rx = {1'b1, tx_reg_for_rx[9:1]};
+                    end
+                end
+
+                begin
+                    // Expected sequence
+                    wait(dut.fsm_state == 2'b01); // START
+                    $display("%t [TB INFO] CAPTURED START STATE", $realtime);
+
+                    wait(dut.fsm_state == 2'b10); // DATA
+                    $display("%t [TB INFO] CAPTURED DATA STATE", $realtime);
+
+                    wait(dut.fsm_state == 2'b11); // STOP
+                    $display("%t [TB INFO] CAPTURED STOP STATE", $realtime);
+
+                    wait(dut.fsm_state == 2'b00 && valid_wire == 1'b0); // IDLE
+                    $display("%t [TB PASS] BROKEN STOP REJECTED, VALID=0",
+                             $realtime);
+                end
+            join
+        end
+
+        begin // Valid checker
+            wait(valid_wire == 1'b1);
+            $display("------------------------------------------------------------");
+            $display("%t [TB ERROR] VALID ASSERTED WITH BROKEN STOP BIT!", $realtime);
+            $display("------------------------------------------------------------");
+            $fatal;
+        end
+
+        begin // Timeout
+            repeat (500)
+                @(posedge baud_tick_reg);
+
+            $display("------------------------------------------------------------");
+            $display("%t [TB ERROR] TIMEOUT IN BROKEN STOP TEST", $realtime);
+            $display("------------------------------------------------------------");
+            $fatal;
+        end
+    join_any
+    disable broken_stop_check;
+
+    $display("%t [TB INFO]  ==== BROKEN STOP SUBTEST COMPLETED ====", $realtime);
+    $display("");
 end
 endtask
 endmodule
