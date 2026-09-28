@@ -75,7 +75,8 @@ begin
 
     system_reset();
     pattern_check();
-    // Here should be false start test. Not completed
+    false_start();
+    // Here should be broken stop bit test. Not completed
 
     $display("-------------------------------------------");
     $display("%t [TB INFO]  TEST COMPLETE", $realtime);
@@ -213,7 +214,51 @@ begin
     // change start bit to idle
     tx_reg_for_rx = 10'b1111111111;
 
-    // Not completed
+    if (dut.fsm_state != START)
+    begin
+        $display("%t [TB ERROR] RESTRICTED STATE OF FSM!", $realtime);
+        $fatal;
+    end
+
+    fork : wait_chng
+    begin
+        wait(dut.fsm_state == IDLE);
+        $display("%t [TB INFO] CAPTURED CHANGE OF STATE TO IDLE", $realtime);
+    end
+
+    begin   // TIMEOUT
+        repeat (500)
+            @(posedge baud_tick_reg);
+
+        $display("-------------------------------------------------------------");
+        $display("%t [TB ERROR] TIMEOUT: UART_RX ARE STUCK IN START STATE", $realtime);
+        $display("-------------------------------------------------------------");
+        $fatal; 
+    end
+    join_any
+    disable wait_chng;
+end
+endtask
+
+task stop_test;
+input [7:0] tx_data;
+begin
+    // Load tx reg with broken stop, data, start bits
+    tx_reg_for_rx = {1'b0, tx_data, 1'b0};
+    $display("%t [TB INFO]  SEND DATA BYTE 0x%h TO UART_RX", $realtime, tx_data);
+
+    repeat (10) // Starting shift loop of all ten bits
+    begin
+        repeat (16) // Wait 16x ticks
+        begin
+            @(posedge baud_tick_reg);
+        end
+
+        tx_reg_for_rx = {1'b1, tx_reg_for_rx[9:1]};
+    end
+
+    // wait(dut.fsm_state == IDLE && valid_wire == 1'b0);
+    // Not completed task
 end
 endtask
 endmodule
