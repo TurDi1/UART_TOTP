@@ -4,7 +4,7 @@ module uart_rx_tb ();
 //==================================
 //           PARAMETERS
 //==================================
-parameter         CLK_WIDTH = 10ns;  // 50 MHz. Clock width, half period.
+parameter         CLK_WIDTH = 5ns;  // 100 MHz. Clock width, half period.
 parameter integer TICK_DIV  = 4;     // Abstract value of divider for sim of baud tick
                                      // without depending on standard baud rates
 

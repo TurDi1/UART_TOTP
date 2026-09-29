@@ -24,12 +24,21 @@ localparam [21:0] K_VALUE_230400 = 22'd618475;
 localparam [21:0] K_VALUE_460800 = 22'd1236951;
 localparam [21:0] K_VALUE_921600 = 22'd2473901;
 
+//==================================
+//      WIRE'S, REG'S and etc
+//==================================
 reg [23:0]      accumulator;
 reg [21:0]      k_reg;
 reg             baud_tick_reg;
 
+//==================================
+//          ASSIGNMENTS
+//==================================
 assign baud_tick_16x = baud_tick_reg;
 
+//==================================
+//             LOGIC
+//==================================
 always @(baud_rate_sel)
 begin
     case(baud_rate_sel)
