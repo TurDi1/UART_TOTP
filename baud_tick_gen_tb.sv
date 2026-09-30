@@ -44,9 +44,10 @@ begin
 
     baud_rate_sel = 4'd5;
     system_reset();
-
+    baud_tick_chk();
     
     #5ns
+    $display("");
     $display("-------------------------------------------");
     $display("%t [TB INFO]  TEST COMPLETED", $realtime);
     $display("-------------------------------------------");
@@ -86,10 +87,41 @@ endtask
 
 task baud_tick_chk;
 begin
+    @(posedge sys_clk_reg);
+
+    // After reset check
     if (baud_tick_reg)
     begin
-        
+        $display("%t [TB INFO]  BAUD TICK GENERATOR HAVE HIGH ON BAUD TICK PORT AFTER RESET!", $realtime);
+        $fatal;
     end
+    else
+    begin
+        $display("%t [TB INFO]  GENERATOR HAVE LOW ON BAUD TICK PORT AFTER RESET - CORRECT VALUE", $realtime);
+    end
+
+    // Check baud tick width should be one sys clk cycle
+    @(posedge baud_tick_reg);
+
+    @(negedge sys_clk_reg);
+    if (!baud_tick_reg)
+    begin
+        $display("%t [TB INFO]  BAUD TICK PORT AFTER HALF PERIOD SYS CLOCK IS LOW!", $realtime);
+        $fatal;        
+    end
+
+    @(negedge sys_clk_reg);
+    if (baud_tick_reg)
+    begin
+        $display("%t [TB INFO]  BAUD TICK PORT AFTER PERIOD SYS CLOCK IS HIGH!", $realtime);
+        $fatal;        
+    end
+    else
+    begin
+        $display("%t [TB INFO]  BAUD TICK PORT AFTER PERIOD SYS CLOCK IS LOW - CORRECT WIDTH", $realtime);
+    end
+
+    // Check interval between ticks for current 16x baud rate
     // Not completed task
 end
 endtask
