@@ -15,7 +15,7 @@ time              rst_time;         // Variable of time for reset
 logic                   sys_clk_reg;
 logic                   sys_rst_reg;
 
-logic   [3:0]           baud_sel_reg;
+logic   [3:0]           baud_rate_sel;
 logic                   baud_tick_reg;
 
 //==================================
@@ -86,6 +86,10 @@ endtask
 
 task baud_tick_chk;
 begin
+    if (baud_tick_reg)
+    begin
+        
+    end
     // Not completed task
 end
 endtask
