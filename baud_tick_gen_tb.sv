@@ -7,8 +7,6 @@ module baud_tick_gen_tb ();
 parameter         CLK_WIDTH = 5ns;  // 100 MHz. Clock width, half period.
 time              rst_time;         // Variable of time for reset
 
-int               N;
-
 //==================================
 //      WIRE'S, REG'S and etc
 //==================================
@@ -60,7 +58,6 @@ begin
     $display("-----------------------------------------------------");
     $display("");
 
-    N = $urandom_range(5000, 10000);
     baud_rate_sel = 4'd5;
 
     system_reset();
@@ -142,7 +139,8 @@ begin
     end
 
     // Check interval between ticks for current 16x baud rate
-    check_tick_interval();
+    repeat($urandom_range(5000, 10000))
+        check_tick_interval();
 end
 endtask
 
@@ -155,21 +153,18 @@ begin
     lower_bound = expected_intervals[baud_rate_sel].min_interval;
     upper_bound = expected_intervals[baud_rate_sel].max_interval;
 
-    interval = 0;
-    // First capture of baud tick
     @(posedge baud_tick_reg);
-
-    // Waiting negedge of baud tick
-    @(negedge baud_tick_reg);
-
-    // Capturing sys clk posedges btw ticks
+    interval = 0;
     forever
     begin
-        @(negedge sys_clk_reg);
+        @(posedge sys_clk_reg);
+        #1step;
+
         interval++;
 
         if (baud_tick_reg)
             break;
+
     end
 
     // Checking of interval for out-of-range
