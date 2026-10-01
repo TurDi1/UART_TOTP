@@ -58,10 +58,12 @@ begin
     $display("-----------------------------------------------------");
     $display("");
 
-    baud_rate_sel = 4'd5;
-
-    system_reset();
-    baud_tick_chk();
+    // Check all baud rates
+    for(int i=0; i<9; i++)
+    begin
+        baud_rate_sel = i;
+        baud_tick_chk();
+    end
     
     #5ns
     $display("");
@@ -104,6 +106,10 @@ endtask
 
 task baud_tick_chk;
 begin
+    $display("%t [TB INFO]  BAUD RADE SELECTOR VALUE -> %h", $realtime, baud_rate_sel);
+
+    // Reset baud tick gen
+    system_reset();
     @(posedge sys_clk_reg);
 
     // After reset check
@@ -141,6 +147,9 @@ begin
     // Check interval between ticks for current 16x baud rate
     repeat($urandom_range(5000, 10000))
         check_tick_interval();
+
+    $display("%t [TB INFO]  INTERVALS BETWEEN TICKS HAVE CORRECT RANGE", $realtime);
+    $display("");
 end
 endtask
 
@@ -173,7 +182,7 @@ begin
         $display("%t [TB ERROR]  INVALID TICK INTERVAL: %0d", $realtime, interval);
         $display("%t [TB INFO]  EXPECTED: %0d..%0d", $realtime, lower_bound, upper_bound);
         $fatal;
-    end    
+    end
 end
 endtask
 endmodule
