@@ -32,20 +32,20 @@ wire               baud_tick_16x_wire;
 //==================================
 sync #(
     .ff_num         ( 'd2 )
-) rx_sync (
+) rx_sync_inst (
     .clk            ( clk ),
     .async_in       ( rx ),
     .sync_out       ( rx_sync )
 );
 
-baud_tick_gen baud_gen (
+baud_tick_gen baud_gen_inst (
     .resetn         ( resetn ),
     .clk            ( clk ),
     .baud_rate_sel  ( baud_rate_sel ),
     .baud_tick_16x  ( baud_tick_16x_wire )
 );
 
-uart_rx rx (
+uart_rx rx_inst (
     .resetn         ( resetn ),
     .clk            ( clk ),
     .baud_tick      ( baud_tick_16x_wire ),
@@ -54,7 +54,7 @@ uart_rx rx (
     .valid          ( valid_out )
 );
 
-/*uart_tx tx (
+/*uart_tx tx_inst (
     .resetn         ( resetn ),
     .clk            ( clk ),
     .baud_tick      ( baud_tick_16x_wire ),
