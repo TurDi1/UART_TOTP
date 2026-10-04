@@ -7,6 +7,8 @@ module baud_tick_gen_tb ();
 parameter         CLK_WIDTH = 5ns;  // 100 MHz. Clock width, half period.
 time              rst_time;         // Variable of time for reset
 
+int               N;
+
 //==================================
 //      WIRE'S, REG'S and etc
 //==================================
@@ -58,11 +60,14 @@ begin
     $display("-----------------------------------------------------");
     $display("");
 
+    // Amount of tick interval checks
+    N = $urandom_range(5000, 10000);
+
     // Check all baud rates
     for(int i=0; i<9; i++)
     begin
         baud_rate_sel = i;
-        baud_tick_chk();
+        baud_tick_chk(N);
     end
     
     #5ns
@@ -105,6 +110,7 @@ end
 endtask
 
 task baud_tick_chk;
+input int num_of_repeats;
 begin
     $display("%t [TB INFO]  BAUD RADE SELECTOR VALUE -> %h", $realtime, baud_rate_sel);
 
@@ -145,7 +151,7 @@ begin
     end
 
     // Check interval between ticks for current 16x baud rate
-    repeat($urandom_range(5000, 10000))
+    repeat(num_of_repeats)
         check_tick_interval();
 
     $display("%t [TB INFO]  INTERVALS BETWEEN TICKS HAVE CORRECT RANGE", $realtime);
@@ -156,7 +162,7 @@ endtask
 task check_tick_interval;
 int lower_bound;
 int upper_bound;
-int interval;
+output int interval;
 begin
     // Assign values in variables
     lower_bound = expected_intervals[baud_rate_sel].min_interval;
