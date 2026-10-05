@@ -4,8 +4,10 @@ module baud_tick_gen_tb ();
 //==================================
 //           PARAMETERS
 //==================================
-parameter         CLK_WIDTH = 5ns;  // 100 MHz. Clock width, half period.
-time              rst_time;         // Variable of time for reset
+parameter real    SYS_CLK_FREQ_HZ            = 100_000_000.0;
+parameter         CLK_WIDTH                  = 5ns;  // 100 MHz. Clock width, half period.
+parameter real    MAX_INTERVAL_ERROR_PERCENT = 0.01;
+time              rst_time;                          // Variable of time for reset
 
 int               N;
 
@@ -16,6 +18,18 @@ typedef struct {
     int min_interval;
     int max_interval;
 } tick_interval_t;
+
+int nominal_baud_rates [9] = '{
+       4800,   // baud_rate_sel = 0
+       9600,   // baud_rate_sel = 1
+      19200,   // baud_rate_sel = 2
+      38400,   // baud_rate_sel = 3
+      57600,   // baud_rate_sel = 4
+     115200,   // baud_rate_sel = 5
+     230400,   // baud_rate_sel = 6
+     460800,   // baud_rate_sel = 7
+     921600    // baud_rate_sel = 8
+};
 
 tick_interval_t expected_intervals [9] = '{
     '{1302, 1303},      // 4800
@@ -111,8 +125,16 @@ endtask
 
 task baud_tick_chk;
 input int num_of_repeats;
+int measured_interval;
+int total_interval;
+
+int baud_rate;
+real actual_average;
+real calc_exp_interval;
+real error_percent;
 begin
-    $display("%t [TB INFO]  BAUD RADE SELECTOR VALUE -> %h", $realtime, baud_rate_sel);
+    total_interval = 0;
+    $display("%t [TB INFO]  BAUD RATE SELECTOR VALUE -> %h, BAUD RATE - %0d", $realtime, baud_rate_sel, nominal_baud_rates[baud_rate_sel]);
 
     // Reset baud tick gen
     system_reset();
@@ -151,10 +173,36 @@ begin
     end
 
     // Check interval between ticks for current 16x baud rate
-    repeat(num_of_repeats)
-        check_tick_interval();
+    @(posedge baud_tick_reg);
 
-    $display("%t [TB INFO]  INTERVALS BETWEEN TICKS HAVE CORRECT RANGE", $realtime);
+    repeat(num_of_repeats)
+    begin
+        check_tick_interval(measured_interval);
+        total_interval += measured_interval;
+    end
+
+    // Long-term check
+    actual_average    = real'(total_interval) / num_of_repeats;
+    baud_rate         = nominal_baud_rates[baud_rate_sel];
+    calc_exp_interval = SYS_CLK_FREQ_HZ / (baud_rate * 16.0);
+
+    error_percent = ((actual_average - calc_exp_interval) / calc_exp_interval) * 100.0;
+
+    if (error_percent < 0.0)
+        error_percent = -error_percent;
+
+    if (error_percent > MAX_INTERVAL_ERROR_PERCENT)
+    begin
+        $display("%t [TB ERROR] LONG-TERM INTERVAL ERROR TOO HIGH: %f%%", $realtime, error_percent);
+        $display("%t [TB ERROR] EXPECTED: %f%%", $realtime, MAX_INTERVAL_ERROR_PERCENT);
+        $fatal;
+    end
+
+    // After checks displays
+    $display("%t [TB INFO]  INTERVALS BETWEEN TICKS HAVE CORRECT RANGE:", $realtime);
+    $display("%t [TB INFO]  ACTUAL AVERAGE INTERVAL - %f", $realtime, actual_average);
+    $display("%t [TB INFO]  EXPECTED INTERVAL - %f", $realtime, calc_exp_interval);
+    $display("%t [TB INFO]  INTERVAL ERROR - %f%%", $realtime, error_percent);
     $display("");
 end
 endtask
@@ -167,9 +215,8 @@ begin
     // Assign values in variables
     lower_bound = expected_intervals[baud_rate_sel].min_interval;
     upper_bound = expected_intervals[baud_rate_sel].max_interval;
-
-    @(posedge baud_tick_reg);
     interval = 0;
+
     forever
     begin
         @(posedge sys_clk_reg);
@@ -179,7 +226,6 @@ begin
 
         if (baud_tick_reg)
             break;
-
     end
 
     // Checking of interval for out-of-range
