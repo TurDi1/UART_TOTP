@@ -57,8 +57,8 @@ begin
     else
     begin
         case (fsm_state)
-        begin
-            IDLE: begin
+            IDLE:
+            begin
                 sample_counter <= 0;
                 bit_counter    <= 0;
                 busy_reg       <= 0;
@@ -69,7 +69,8 @@ begin
                   fsm_state <= SHIFT;
                 end
             end
-            SHIFT: begin
+            SHIFT:
+            begin
                 if (baud_tick)
                 begin
                     if (sample_counter == 4'b1111)
@@ -93,7 +94,6 @@ begin
                     end
                 end
             end
-        end
             default: fsm_state <= IDLE;
         endcase
     end
@@ -105,7 +105,7 @@ begin
     if (!resetn)
         shift_reg <= '1;
     else if (load)
-        shift_reg[9:0] <= {1'b1, data, 1'b0};
+        shift_reg <= {1'b1, data, 1'b0};
     else if (en_shft && baud_tick)
         shift_reg <= {1'b1, shift_reg[9:1]};   // Shift from right
 end
