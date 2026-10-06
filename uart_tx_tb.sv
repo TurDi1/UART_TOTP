@@ -70,7 +70,7 @@ initial
 begin
     $timeformat(-9, 0, " ns", 0);
     $display("---------------------------------------------");
-    $display("%t [TB INFO]  STARTING TEST FOR UART_RX", $realtime);
+    $display("%t [TB INFO]  STARTING TEST FOR UART_TX", $realtime);
     $display("---------------------------------------------");
     $display("");
 
@@ -83,6 +83,8 @@ begin
     valid_wire  <= 1;
     @(posedge sys_clk_reg);
     valid_wire  <= 0;
+
+    wait(busy_wire == 0 && valid_wire == 0);
 
     #5ns
     $display("-------------------------------------------");
