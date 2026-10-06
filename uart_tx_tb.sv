@@ -151,7 +151,7 @@ begin
     system_reset();
     @(posedge sys_clk_reg);
 
-    if ((rx_reg_for_tx[9] != 1'b1) && (busy_wire != 0))
+    if ((rx_reg_for_tx[9] != 1'b1) || (busy_wire != 0))
     begin
         $display("%t [TB ERROR]  TX PORT ARE NOT IN HIGH AND BUSY PORT ARE NOT IN LOW AFTER RESET!", $realtime);
         $fatal;
