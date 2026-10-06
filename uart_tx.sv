@@ -24,10 +24,10 @@ reg [3:0]   bit_counter;
 
 reg         busy_reg;
 wire        en_shft;
-wire       load;
+wire        load;
   
 typedef enum reg [1:0] {
-    IDLE,`
+    IDLE,
     PRE_SHIFT,
     SHIFT
 } state_t;
@@ -37,10 +37,10 @@ state_t fsm_state;
 //==================================
 //          ASSIGNMENTS
 //==================================  
-assign busy = busy_reg;
+assign busy    = busy_reg;
+assign load    = (fsm_state == IDLE) && (valid == 1'b1);
 assign en_shft = (fsm_state == SHIFT) && (sample_counter == 4'b1111);
-assign load = (fsm_state == IDLE) && (valid == 1'b1);
-assign tx = shift_reg[0];
+assign tx      = (fsm_state == SHIFT) ? shift_reg[0] : 1'b1;
 
 //==================================
 //             LOGIC
@@ -63,7 +63,7 @@ begin
                 sample_counter <= 0;
                 bit_counter    <= 0;
                 busy_reg       <= 0;
-              
+
                 if (valid)
                 begin
                   busy_reg  <= 1'b1;
@@ -73,10 +73,7 @@ begin
             PRE_SHIFT:
             begin
                 if (baud_tick)
-                begin
-                    // Not completed
-                end
-                fsm_state <= SHIFT;
+                    fsm_state <= SHIFT;
             end    
             SHIFT:
             begin
