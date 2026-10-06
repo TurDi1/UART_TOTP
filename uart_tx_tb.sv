@@ -46,20 +46,20 @@ always @(posedge sys_clk_reg)
 begin
     if (sys_rst_reg)
     begin
-        tick_counter  = 0;
-        baud_tick_reg = 0;
+        tick_counter  <= 0;
+        baud_tick_reg <= 0;
     end
     else
     begin
-        baud_tick_reg = 0;
+        baud_tick_reg <= 0;
 
         if (tick_counter == TICK_DIV - 1)
         begin
-            tick_counter  = 0;
-            baud_tick_reg = 1;
+            tick_counter  <= 0;
+            baud_tick_reg <= 1;
         end
         else
-            tick_counter = tick_counter + 1;
+            tick_counter <= tick_counter + 1;
     end
 end
 

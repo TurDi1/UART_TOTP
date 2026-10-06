@@ -27,7 +27,8 @@ wire        en_shft;
 wire       load;
   
 typedef enum reg [1:0] {
-    IDLE,
+    IDLE,`
+    PRE_SHIFT,
     SHIFT
 } state_t;
 
@@ -66,9 +67,17 @@ begin
                 if (valid)
                 begin
                   busy_reg  <= 1'b1;
-                  fsm_state <= SHIFT;
+                  fsm_state <= PRE_SHIFT;
                 end
             end
+            PRE_SHIFT:
+            begin
+                if (baud_tick)
+                begin
+                    // Not completed
+                end
+                fsm_state <= SHIFT;
+            end    
             SHIFT:
             begin
                 if (baud_tick)
