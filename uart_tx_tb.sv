@@ -1,6 +1,6 @@
 `timescale 1 ns / 1 ns
 
-module uart_rx_tb ();
+module uart_tx_tb ();
 //==================================
 //           PARAMETERS
 //==================================
@@ -75,11 +75,15 @@ begin
     $display("");
 
     valid_wire  <= 0;
-    tx_data_reg <= 8'h;
+    tx_data_reg <= 8'h55;
 
     system_reset();
 
-    
+    @(posedge sys_clk_reg);
+    valid_wire  <= 1;
+    @(posedge sys_clk_reg);
+    valid_wire  <= 0;
+
     #5ns
     $display("-------------------------------------------");
     $display("%t [TB INFO]  ALL TESTS COMPLETED", $realtime);
