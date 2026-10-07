@@ -165,7 +165,25 @@ begin
     $display("%t [TB INFO]  ==== PATTERN/FRAME TEST STARTED ====", $realtime);
     $display("");
 
+    for(int i = 0; i < $size(pattern_bytes); i++)
+    begin
+        normal_send_data(pattern_bytes[i]);
+        wait(busy_wire == 0);
+    end
+
     // Not completed
 end    
+endtask
+
+task normal_send_data;
+input [7:0] tx_data;
+begin
+    @(posedge sys_clk_reg);
+    tx_data_reg = tx_data;;
+    valid_wire  = 1;
+
+    @(posedge sys_clk_reg);
+    valid_wire  = 0;
+end
 endtask
 endmodule
