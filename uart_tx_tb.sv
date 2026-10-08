@@ -170,7 +170,7 @@ begin
 
     repeat(2)
     begin
-        @(posedge sys_clk_reg);
+        @(negedge sys_clk_reg);
         valid_wire = ~valid_wire;
     end
 
@@ -178,7 +178,7 @@ begin
     @(negedge rx_reg_for_tx[9]);
     
     // Sampling bits. Check START bit.
-    repeat(7)
+    repeat(8)
         @(posedge baud_tick_reg);
 
     if(rx_reg_for_tx[9] == 1'b0)
@@ -200,7 +200,7 @@ begin
         else
         begin
             $display("%t [TB INFO]  d%0d BIT OF FRAME HAVE INCORRECT VALUE", $realtime, i);
-            $display("%t [TB INFO]  EXPECTED - %b | RECEIVED - %b", $realtime, tx_data[i], rx_reg_for_tx[i]);
+            $display("%t [TB INFO]  EXPECTED - %b | RECEIVED - %b", $realtime, tx_data[i], rx_reg_for_tx[9]);
             $fatal;
         end
     end
@@ -218,6 +218,7 @@ begin
     end
     
     wait(!busy_wire);
+    $display("");
 end
 endtask
 endmodule
