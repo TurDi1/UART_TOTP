@@ -76,18 +76,6 @@ begin
 
     pattern_check();
 
-    // valid_wire  <= 0;
-    // tx_data_reg <= 8'h55;
-
-    // system_reset();
-
-    // @(posedge sys_clk_reg);
-    // valid_wire  <= 1;
-    // @(posedge sys_clk_reg);
-    // valid_wire  <= 0;
-
-    // wait(busy_wire == 0 && valid_wire == 0);
-
     #5ns
     $display("-------------------------------------------");
     $display("%t [TB INFO]  ALL TESTS COMPLETED", $realtime);
@@ -167,8 +155,8 @@ begin
 
     for(int i = 0; i < $size(pattern_bytes); i++)
     begin
+        $display("%t [TB INFO]  ==== SEND [%h] BYTE OF PATTERN BYTES ====", $realtime, pattern_bytes[i]);
         normal_send_data(pattern_bytes[i]);
-        wait(busy_wire == 0);
     end
 
     // Not completed
@@ -178,12 +166,43 @@ endtask
 task normal_send_data;
 input [7:0] tx_data;
 begin
+    // Send data to uart_tx
     @(posedge sys_clk_reg);
-    tx_data_reg = tx_data;;
+    tx_data_reg = tx_data;
     valid_wire  = 1;
 
     @(posedge sys_clk_reg);
     valid_wire  = 0;
+
+    @(posedge sys_clk_reg);
+    
+    // Start checking bits
+    repeat(7)
+        @(posedge baud_tick_reg);
+    
+    if(rx_reg_for_tx[9] == 1'b0)    // Check START bit
+        $display("%t [TB INFO]  START BIT OF FRAME HAVE CORRECT VALUE", $realtime);  
+    else
+    begin
+        $display("%t [TB INFO]  START BIT OF FRAME HAVE INCORRECT VALUE", $realtime);
+        $fatal;
+    end
+
+    for(int i = 0; i < 8; i++)  // Check DATA bits
+    begin
+        repeat(16)
+            @(posedge baud_tick_reg);
+        
+        if (rx_reg_for_tx[9] == tx_data[i])
+            $display("%t [TB INFO]  d%d BIT OF FRAME HAVE CORRECT VALUE", $realtime, i);
+        else
+        begin
+            $display("%t [TB INFO]  d%d BIT OF FRAME HAVE INCORRECT VALUE", $realtime, i);
+            $display("%t [TB INFO]  EXPECTED - %b | RECEIVED - %b", $realtime, tx_data[i], rx_reg_for_tx[i]);
+            $fatal;
+        end
+    end
+
 end
 endtask
 endmodule
