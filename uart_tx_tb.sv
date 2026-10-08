@@ -7,6 +7,7 @@ module uart_tx_tb ();
 parameter         CLK_WIDTH = 5ns;  // 100 MHz. Clock width, half period.
 parameter integer TICK_DIV  = 4;    // Abstract value of divider for sim of baud tick
                                     // without depending on standard baud rates
+parameter integer FRAME_TIMEOUT_CLKS = (10 * 16 * TICK_DIV) + (4 * TICK_DIV) + 20;
 
 integer           tick_counter;
 time              rst_time;         // Variable of time for reset
@@ -156,7 +157,21 @@ begin
     for(int i = 0; i < $size(pattern_bytes); i++)
     begin
         $display("%t [TB INFO]  ==== SEND 0x%h BYTE OF PATTERN BYTES ====", $realtime, pattern_bytes[i]);
-        normal_send_data(pattern_bytes[i]);
+        fork : send_with_timeout
+        begin
+            normal_send_data(pattern_bytes[i]);
+        end
+
+        begin
+            repeat(FRAME_TIMEOUT_CLKS)
+                @(posedge sys_clk_reg);
+
+            $display("%t [TB ERROR] TIMEOUT DURING TRANSMISSION OF 0x%h",
+                    $realtime, pattern_bytes[i]);
+            $fatal;
+        end
+        join_any
+        disable send_with_timeout;
     end
 end    
 endtask
