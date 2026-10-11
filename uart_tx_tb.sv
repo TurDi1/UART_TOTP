@@ -76,6 +76,9 @@ begin
     $display("");
 
     pattern_check();
+    
+    check_frame_timing(8'h55);
+    check_frame_timing(8'hAA);
 
     #5ns
     $display("-------------------------------------------");
@@ -234,6 +237,39 @@ begin
     
     wait(!busy_wire);
     $display("");
+end
+endtask
+
+task check_frame_timing;
+input [7:0] tx_data;
+logic [9:0] expected_frame;
+begin
+    wait(!busy_wire);
+    expected_frame = {1'b1, tx_data, 1'b0};
+
+    // Send data to uart_tx
+    tx_data_reg = tx_data;
+    valid_wire  = 0;
+
+    repeat(2)
+    begin
+        @(negedge sys_clk_reg);
+        valid_wire = ~valid_wire;
+    end
+
+    // Capture start of frame
+    @(negedge rx_reg_for_tx[9]);
+
+    for(int bit_index = 0; bit_index < 10; bit_index++)
+    begin
+        for(int tick = 0; tick < 16; tick++)
+        begin
+            @(posedge baud_tick_reg);
+
+            if (rx_reg_for_tx[9] !== expected_frame[bit_index])
+                $fatal;
+        end
+    end    
 end
 endtask
 endmodule
