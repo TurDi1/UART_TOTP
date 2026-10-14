@@ -30,6 +30,7 @@ wire               baud_tick_16x_wire;
 //==================================
 //         INSTATIATIONS
 //==================================
+// Sync for async rx input
 sync #(
     .ff_num         ( 'd2 )
 ) rx_sync_inst (
@@ -38,6 +39,7 @@ sync #(
     .sync_out       ( rx_sync )
 );
 
+// Baud rate generator
 baud_tick_gen baud_gen_inst (
     .resetn         ( resetn ),
     .clk            ( clk ),
@@ -45,6 +47,7 @@ baud_tick_gen baud_gen_inst (
     .baud_tick_16x  ( baud_tick_16x_wire )
 );
 
+// Receiver
 uart_rx rx_inst (
     .resetn         ( resetn ),
     .clk            ( clk ),
@@ -54,7 +57,8 @@ uart_rx rx_inst (
     .valid          ( valid_out )
 );
 
-/*uart_tx tx_inst (
+// Transmitter
+uart_tx tx_inst (
     .resetn         ( resetn ),
     .clk            ( clk ),
     .baud_tick      ( baud_tick_16x_wire ),
@@ -62,6 +66,5 @@ uart_rx rx_inst (
     .data           ( data_in ),
     .valid          ( valid_in ),
     .busy           ( busy )
-); 
-*/
+);
 endmodule
