@@ -245,10 +245,25 @@ input [7:0]    tx_data;
 logic [9:0]    expected_frame;
 string         bit_name;
 begin
+    wait(!busy_wire);
+
     $display("%t [TB INFO]  ==== CHECK FRAME TIMING TEST STARTED ====", $realtime);
     $display("%t [TB INFO]  SEND 0x%h BYTE", $realtime, tx_data);
-    wait(!busy_wire);
+
     expected_frame = {1'b1, tx_data, 1'b0};
+    
+    $display("%t [TB INFO]  FRAME: START=%b | D0=%b D1=%b D2=%b D3=%b D4=%b D5=%b D6=%b D7=%b | STOP=%b",
+    $realtime,
+    expected_frame[0],
+    expected_frame[1],
+    expected_frame[2],
+    expected_frame[3],
+    expected_frame[4],
+    expected_frame[5],
+    expected_frame[6],
+    expected_frame[7],
+    expected_frame[8],
+    expected_frame[9]);
 
     // Send data to uart_tx
     tx_data_reg = tx_data;
@@ -292,7 +307,7 @@ begin
                 end
             end
 
-            $display("%t [TB INFO]  %s BIT DURATION = 16 BAUD TICKS: OK", $realtime, bit_name);
+            $display("%t [TB INFO]  %s BIT HELD EXPECTED VALUE FOR 16 BAUD TICKS: OK", $realtime, bit_name);
         end
     end
     
