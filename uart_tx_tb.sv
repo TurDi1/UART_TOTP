@@ -170,8 +170,7 @@ begin
             repeat(FRAME_TIMEOUT_CLKS)
                 @(posedge sys_clk_reg);
 
-            $display("%t [TB ERROR] TIMEOUT DURING TRANSMISSION OF 0x%h",
-                    $realtime, pattern_bytes[i]);
+            $display("%t [TB ERROR] TIMEOUT DURING TRANSMISSION OF 0x%h", $realtime, pattern_bytes[i]);
             $fatal;
         end
         join_any
@@ -242,9 +241,12 @@ end
 endtask
 
 task check_frame_timing;
-input [7:0] tx_data;
-logic [9:0] expected_frame;
+input [7:0]    tx_data;
+logic [9:0]    expected_frame;
+string         bit_name;
 begin
+    $display("%t [TB INFO]  ==== CHECK FRAME TIMING TEST STARTED ====", $realtime);
+    $display("%t [TB INFO]  SEND 0x%h BYTE", $realtime, tx_data);
     wait(!busy_wire);
     expected_frame = {1'b1, tx_data, 1'b0};
 
@@ -258,7 +260,7 @@ begin
         valid_wire = ~valid_wire;
     end
 
-    fork
+    fork : tmng_chk_with_timeout
     begin
         // Capture start of frame
         @(negedge rx_reg_for_tx[9]);
@@ -266,6 +268,13 @@ begin
         // Capture data and stop of frame
         for(int bit_index = 0; bit_index < 10; bit_index++)
         begin
+            case (bit_index) // Additional case for CLI log.
+                0: bit_name = "START";
+                9: bit_name = "STOP";
+                default: bit_name = $sformatf("d%0d", bit_index - 1);
+            endcase
+
+
             for(int tick = 0; tick < 16; ) // It's correct!
             begin
                 @(posedge sys_clk_reg);
@@ -273,11 +282,17 @@ begin
                 if (baud_tick_reg)
                 begin
                     if (rx_reg_for_tx[9] !== expected_frame[bit_index])
+                    begin
+                        $display("%t [TB ERROR] %s BIT TIMING ERROR AT BAUD TICK %0d", $realtime, bit_name, tick);
+                        $display("%t [TB ERROR] EXPECTED - %b | RECEIVED - %b", $realtime, expected_frame[bit_index], rx_reg_for_tx[9]);
                         $fatal;
+                    end
 
                     tick++;
                 end
             end
+
+            $display("%t [TB INFO]  %s BIT DURATION = 16 BAUD TICKS: OK", $realtime, bit_name);
         end
     end
     
@@ -286,11 +301,14 @@ begin
         repeat(FRAME_TIMEOUT_CLKS)
             @(posedge sys_clk_reg);
 
-        $display("%t [TB ERROR] TIMEOUT DURING TRANSMISSION OF 0x%h",
-                $realtime, pattern_bytes[i]);
+        $display("%t [TB ERROR] TIMEOUT DURING CHECK FRAME TIMING", $realtime);
         $fatal;
     end
-    join_any    
+    join_any
+    disable tmng_chk_with_timeout;
+
+    $display("");
 end
 endtask
+//
 endmodule
