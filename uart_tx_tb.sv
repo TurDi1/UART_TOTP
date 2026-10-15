@@ -251,7 +251,7 @@ begin
     $display("%t [TB INFO]  SEND 0x%h BYTE", $realtime, tx_data);
 
     expected_frame = {1'b1, tx_data, 1'b0};
-    
+
     $display("%t [TB INFO]  FRAME: START=%b | D0=%b D1=%b D2=%b D3=%b D4=%b D5=%b D6=%b D7=%b | STOP=%b",
     $realtime,
     expected_frame[0],
@@ -325,5 +325,10 @@ begin
     $display("");
 end
 endtask
-//
+
+task check_valid_phase
+begin
+    
+end
+endtask
 endmodule
