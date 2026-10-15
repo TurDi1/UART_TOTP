@@ -165,6 +165,7 @@ begin
             normal_send_data(pattern_bytes[i]);
         end
 
+        // Timeout
         begin
             repeat(FRAME_TIMEOUT_CLKS)
                 @(posedge sys_clk_reg);
@@ -257,19 +258,39 @@ begin
         valid_wire = ~valid_wire;
     end
 
-    // Capture start of frame
-    @(negedge rx_reg_for_tx[9]);
-
-    for(int bit_index = 0; bit_index < 10; bit_index++)
+    fork
     begin
-        for(int tick = 0; tick < 16; tick++)
+        // Capture start of frame
+        @(negedge rx_reg_for_tx[9]);
+        
+        // Capture data and stop of frame
+        for(int bit_index = 0; bit_index < 10; bit_index++)
         begin
-            @(posedge baud_tick_reg);
+            for(int tick = 0; tick < 16; ) // It's correct!
+            begin
+                @(posedge sys_clk_reg);
 
-            if (rx_reg_for_tx[9] !== expected_frame[bit_index])
-                $fatal;
+                if (baud_tick_reg)
+                begin
+                    if (rx_reg_for_tx[9] !== expected_frame[bit_index])
+                        $fatal;
+
+                    tick++;
+                end
+            end
         end
-    end    
+    end
+    
+    // Timeout
+    begin
+        repeat(FRAME_TIMEOUT_CLKS)
+            @(posedge sys_clk_reg);
+
+        $display("%t [TB ERROR] TIMEOUT DURING TRANSMISSION OF 0x%h",
+                $realtime, pattern_bytes[i]);
+        $fatal;
+    end
+    join_any    
 end
 endtask
 endmodule
