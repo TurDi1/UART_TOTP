@@ -326,9 +326,54 @@ begin
 end
 endtask
 
+// Task for checking handling of valid signal
 task check_valid_phase
 begin
-    
+    valid_before_baud();    // Before baud tick edge
+        // Same edge with baud tick
+        // After baud tick edge
+end
+endtask
+
+task valid_before_baud
+begin
+    tx_data_reg = 8'hAA;
+    valid_wire  = 0;
+
+    // Wait IDLE state in transmitter
+    wait(!busy_wire);
+    // Wait end of posedge of baud tick and start of negedge
+    @(negedge baud_tick_reg);
+
+    repeat(2)   // Control valid signal
+    begin
+        @(negedge sys_clk_reg);
+        valid_wire = ~valid_wire;
+    end
+
+    // Wait first baud tick
+    @(posedge baud_tick_reg);
+
+    repeat(2)
+    begin
+        @(posedge sys_clk_reg);
+    end
+
+    if (rx_reg_for_tx[9] != 1'b1)
+        
+
+end
+endtask
+
+task valid_same_edge_baud
+begin
+
+end
+endtask
+
+task valid_after_baud
+begin
+
 end
 endtask
 endmodule
