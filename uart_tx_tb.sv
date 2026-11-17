@@ -8,6 +8,7 @@ parameter         CLK_WIDTH = 5ns;  // 100 MHz. Clock width, half period.
 parameter integer TICK_DIV  = 4;    // Abstract value of divider for sim of baud tick
                                     // without depending on standard baud rates
 parameter integer FRAME_TIMEOUT_CLKS = (10 * 16 * TICK_DIV) + (4 * TICK_DIV) + 20;
+parameter integer VALID_TIMEOUT_CLKS = (2 * TICK_DIV) + 10;
 
 integer           tick_counter;
 time              rst_time;         // Variable of time for reset
@@ -80,6 +81,8 @@ begin
     check_frame_timing(8'h55);
     check_frame_timing(8'hAA);
 
+    check_valid_phase();
+    
     #5ns
     $display("-------------------------------------------");
     $display("%t [TB INFO]  ALL TESTS COMPLETED", $realtime);
@@ -327,53 +330,197 @@ end
 endtask
 
 // Task for checking handling of valid signal
-task check_valid_phase
+task check_valid_phase;
 begin
     valid_before_baud();    // Before baud tick edge
-        // Same edge with baud tick
-        // After baud tick edge
+    valid_same_edge_baud(); // Same edge with baud tick
+    valid_after_baud();     // After baud tick edge
 end
 endtask
 
-task valid_before_baud
+task valid_before_baud;
 begin
     tx_data_reg = 8'hAA;
     valid_wire  = 0;
 
-    // Wait IDLE state in transmitter
-    wait(!busy_wire);
-    // Wait end of posedge of baud tick and start of negedge
-    @(negedge baud_tick_reg);
+    $display("%t [TB INFO]  ==== CHECK VALID SIGNAL HANDLING BEFORE BAUD TICK ====", $realtime);
 
-    repeat(2)   // Control valid signal
+    fork : valid_checker
     begin
-        @(negedge sys_clk_reg);
-        valid_wire = ~valid_wire;
-    end
+        // Wait IDLE state in transmitter
+        wait(!busy_wire);
 
-    // Wait first baud tick
-    @(posedge baud_tick_reg);
+        // Wait until current baud tick pulse is deasserted
+        @(negedge baud_tick_reg);
 
-    repeat(2)
-    begin
+        repeat(2)   // Control valid signal
+        begin
+            @(negedge sys_clk_reg);
+            valid_wire = ~valid_wire;
+        end
+
+        if (rx_reg_for_tx[9] !== 1'b1)
+        begin
+            $display("%t [TB ERROR] TX WENT LOW BEFORE NEXT BAUD TICK!", $realtime);
+            $fatal;
+        end
+
+        // Wait for assertion of the next baud tick pulse
+        @(posedge baud_tick_reg);
+        // Wait until DUT consumes this baud tick
         @(posedge sys_clk_reg);
+        
+        #1step;  // Observe state/output after NBA updates
+        if (rx_reg_for_tx[9] !== 1'b0)
+        begin
+            $display("%t [TB ERROR] START BIT WAS NOT LAUNCHED ON NEXT BAUD TICK!", $realtime);
+            $fatal;
+        end
     end
 
-    if (rx_reg_for_tx[9] != 1'b1)
+    // Timeout
+    begin
+        repeat(VALID_TIMEOUT_CLKS)
+            @(posedge sys_clk_reg);
+
+        $display("%t [TB ERROR] TIMEOUT DURING CHECK VALID SIGNAL HANDLING", $realtime);
+        $fatal;
+    end
+    join_any
+    disable valid_checker;
+
+    wait(!busy_wire);
+    $display("%t [TB INFO]  CHECK VALID SIGNAL HANDLING BEFORE BAUD TICK - PASSED", $realtime);
+end
+endtask
+
+task valid_same_edge_baud;
+begin
+    tx_data_reg = 8'hAA;
+    valid_wire  = 0;
+
+    $display("");
+    $display("%t [TB INFO]  ==== CHECK VALID SIGNAL HANDLING AT SAME EDGE OF BAUD TICK ====", $realtime);
+
+    fork : valid_checker
+    begin
+        // Wait IDLE state in transmitter
+        wait(!busy_wire); 
+    
+        // Wait for assertion of the next baud tick pulse
+        @(posedge baud_tick_reg);
+
+        // Wait negedge of sys clock
+        @(negedge sys_clk_reg);
+
+        // Assert valid signal
+        valid_wire = ~valid_wire;
+    
+        // Wait until DUT consumes this baud tick
+        @(posedge sys_clk_reg);
         
+        #1step;  // Observe state/output after NBA updates
+        if ((rx_reg_for_tx[9] !== 1'b1) || (busy_wire !== 1'b1))
+        begin
+            $display("%t [TB ERROR] INVALID STATE AFTER VALID/BAUD SAME-EDGE: TX=%b BUSY=%b, EXPECTED TX=1 BUSY=1",
+            $realtime, rx_reg_for_tx[9], busy_wire);
+            $fatal;
+        end
 
+        // Deassert valid signal
+        valid_wire = ~valid_wire;
+
+        // Wait for assertion of the next baud tick pulse
+        @(posedge baud_tick_reg);
+        // Wait until DUT consumes this baud tick
+        @(posedge sys_clk_reg);
+        
+        #1step;  // Observe state/output after NBA updates
+        if (rx_reg_for_tx[9] !== 1'b0)
+        begin
+            $display("%t [TB ERROR] START BIT WAS NOT LAUNCHED ON NEXT BAUD TICK!", $realtime);
+            $fatal;
+        end
+    end
+
+    // Timeout
+    begin
+        repeat(VALID_TIMEOUT_CLKS)
+            @(posedge sys_clk_reg);
+
+        $display("%t [TB ERROR] TIMEOUT DURING CHECK VALID SIGNAL HANDLING", $realtime);
+        $fatal;
+    end
+    join_any
+    disable valid_checker;
+
+    wait(!busy_wire);
+    $display("%t [TB INFO]  CHECK VALID SIGNAL HANDLING AT THE SAME EDGE OF BAUD TICK - PASSED", $realtime);    
 end
 endtask
 
-task valid_same_edge_baud
+task valid_after_baud;
 begin
+    tx_data_reg = 8'hAA;
+    valid_wire  = 0;
+    
+    $display("");
+    $display("%t [TB INFO]  ==== CHECK VALID SIGNAL HANDLING AFTER EDGE OF BAUD TICK ====", $realtime);
 
-end
-endtask
+    fork : valid_checker
+    begin
+        // Wait IDLE state in transmitter
+        wait(!busy_wire); 
+    
+        // Wait for assertion of the next baud tick pulse
+        @(posedge baud_tick_reg);
 
-task valid_after_baud
-begin
+        // Wait posedge of sys clock
+        @(posedge sys_clk_reg);
 
+        @(negedge sys_clk_reg);
+        // Assert valid
+        valid_wire = ~valid_wire;
+    
+        @(posedge sys_clk_reg);
+        #1step;
+
+        if ((rx_reg_for_tx[9] !== 1'b1) || (busy_wire !== 1'b1))
+        begin
+            $display("%t [TB ERROR] INVALID STATE AFTER VALID/BAUD AFTER-EDGE: TX=%b BUSY=%b, EXPECTED TX=1 BUSY=1",
+            $realtime, rx_reg_for_tx[9], busy_wire);
+            $fatal;
+        end
+
+        @(negedge sys_clk_reg);
+        // Deassert valid
+        valid_wire = ~valid_wire;
+
+        // Wait for assertion of the next baud tick pulse
+        @(posedge baud_tick_reg);
+        @(posedge sys_clk_reg);
+
+        #1step;  // Observe state/output after NBA updates
+        if (rx_reg_for_tx[9] !== 1'b0)
+        begin
+            $display("%t [TB ERROR] START BIT WAS NOT LAUNCHED ON NEXT BAUD TICK!", $realtime);
+            $fatal;
+        end
+    end
+
+    // Timeout
+    begin
+        repeat(VALID_TIMEOUT_CLKS)
+            @(posedge sys_clk_reg);
+
+        $display("%t [TB ERROR] TIMEOUT DURING CHECK VALID SIGNAL HANDLING", $realtime);
+        $fatal;
+    end
+    join_any
+    disable valid_checker;
+
+    wait(!busy_wire);
+    $display("%t [TB INFO]  CHECK VALID SIGNAL HANDLING AFTER EDGE OF BAUD TICK - PASSED", $realtime);  
 end
 endtask
 endmodule
