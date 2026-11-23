@@ -83,6 +83,8 @@ begin
 
     check_valid_phase();
     
+    data_capture_check();
+
     #5ns
     $display("-------------------------------------------");
     $display("%t [TB INFO]  ALL TESTS COMPLETED", $realtime);
@@ -520,7 +522,94 @@ begin
     disable valid_checker;
 
     wait(!busy_wire);
-    $display("%t [TB INFO]  CHECK VALID SIGNAL HANDLING AFTER EDGE OF BAUD TICK - PASSED", $realtime);  
+    $display("%t [TB INFO]  CHECK VALID SIGNAL HANDLING AFTER EDGE OF BAUD TICK - PASSED", $realtime);
+end
+endtask
+
+task data_capture_check;
+logic [9:0]    expected_frame;
+string         bit_name;
+begin
+    tx_data_reg = 8'h55;
+    valid_wire  = 0;
+
+    $display("");
+    $display("%t [TB INFO]  ==== DATA CAPTURE CHECK ====", $realtime);
+
+    // Wait IDLE state in transmitter
+    wait(!busy_wire);
+
+    $display("%t [TB INFO]  SEND 0x%h BYTE", $realtime, tx_data_reg);
+    expected_frame = {1'b1, tx_data_reg, 1'b0};
+
+    $display("%t [TB INFO]  FRAME: START=%b | D0=%b D1=%b D2=%b D3=%b D4=%b D5=%b D6=%b D7=%b | STOP=%b",
+    $realtime,
+    expected_frame[0],
+    expected_frame[1],
+    expected_frame[2],
+    expected_frame[3],
+    expected_frame[4],
+    expected_frame[5],
+    expected_frame[6],
+    expected_frame[7],
+    expected_frame[8],
+    expected_frame[9]);
+
+    @(negedge sys_clk_reg);
+    valid_wire = ~valid_wire;
+
+    @(negedge sys_clk_reg);
+    valid_wire = ~valid_wire;
+    tx_data_reg = ~tx_data_reg;
+
+    fork : data_capture
+    begin
+        // Capture start of frame
+        @(negedge rx_reg_for_tx[9]);
+        
+        // Capture data and stop of frame
+        for(int bit_index = 0; bit_index < 10; bit_index++)
+        begin
+            case (bit_index) // Additional case for CLI log.
+                0: bit_name = "START";
+                9: bit_name = "STOP";
+                default: bit_name = $sformatf("d%0d", bit_index - 1);
+            endcase
+
+
+            for(int tick = 0; tick < 16; ) // It's correct!
+            begin
+                @(posedge sys_clk_reg);
+
+                if (baud_tick_reg)
+                begin
+                    if (rx_reg_for_tx[9] !== expected_frame[bit_index])
+                    begin
+                        $display("%t [TB ERROR] EXPECTED - %b | RECEIVED - %b", $realtime, expected_frame[bit_index], rx_reg_for_tx[9]);
+                        $fatal;
+                    end
+
+                    tick++;
+                end
+            end
+
+            $display("%t [TB INFO]  %s: EXPECTED=%b | RECEIVED=%b - OK", $realtime, bit_name, expected_frame[bit_index], rx_reg_for_tx[9]);
+        end
+    end
+
+    // Timeout
+    begin
+        repeat(FRAME_TIMEOUT_CLKS)
+            @(posedge sys_clk_reg);
+
+        $display("%t [TB ERROR] TIMEOUT DURING CHECK FRAME TIMING", $realtime);
+        $fatal;
+    end
+    join_any
+    disable data_capture;
+
+    wait(!busy_wire);
+    $display("%t [TB INFO]  DATA CAPTURE CHECK - PASSED", $realtime);
 end
 endtask
 endmodule
